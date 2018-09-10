@@ -13,9 +13,8 @@
         "response": {
             "id": "org.ekstep.genie.content.home",
             "banners": null,
-	        "name": "Resource",
-            "sections": [
-                {
+            "name": null,
+            "sections": [{
                     "display": {
                         "name": {
                             "en": "Best of Genie",

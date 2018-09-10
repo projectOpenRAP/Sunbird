@@ -1,14 +1,18 @@
-
 let q = require('q');
-let { init, createIndex, deleteIndex, getAllIndices } = require('../../../searchsdk/index.js');
+let {
+    init,
+    createIndex,
+    deleteIndex,
+    getAllIndices
+} = require('../../../searchsdk/index.js');
 
 
 /*
-*   Check if index exists
-*   If not, create
-*   If so, carpet bomb
-*   Then load
-*/
+ *   Check if index exists
+ *   If not, create
+ *   If so, carpet bomb
+ *   Then load
+ */
 
 
 let checkIfIndexExists = (iName) => {
@@ -27,12 +31,16 @@ let checkIfIndexExists = (iName) => {
     return defer.promise;
 }
 
-let initializeESDB = () => {
+let initializeSbDB = () => {
     let defer = q.defer();
-    checkIfIndexExists("es.db").then(value => {
-        deleteIndex({indexName: "es.db"}).then(value => {
+    checkIfIndexExists("sb.db").then(value => {
+        deleteIndex({
+            indexName: "sb.db"
+        }).then(value => {
             console.log("Deleted index");
-            return createIndex({indexName: "es.db"});
+            return createIndex({
+                indexName: "sb.db"
+            });
         }).then(value => {
             console.log("Index created");
             return init();
@@ -43,7 +51,9 @@ let initializeESDB = () => {
             return defer.rejeect(e);
         });
     }, reason => {
-        createIndex({indexName: "es.db"}).then(value => {
+        createIndex({
+            indexName: "sb.db"
+        }).then(value => {
             console.log("Created new index");
             return init();
         }).then(value => {
@@ -57,7 +67,7 @@ let initializeESDB = () => {
 }
 
 /*
-initializeESDB().then(value => {
+initializeSbDB().then(value => {
     console.log("successfully initialized DB");
 }).catch(e => {
     console.log(e);
@@ -65,5 +75,5 @@ initializeESDB().then(value => {
 */
 
 module.exports = {
-    initializeESDB
+    initializeSbDB
 }

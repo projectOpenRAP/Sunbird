@@ -13,11 +13,9 @@
     "result": {
         "count": 0,
         "content": [],
-        "facets": [
-            {
-                "values": [],
-                "name": ""
-            }
-        ]
+        "facets": [{
+            "values": [],
+            "name": ""
+        }]
     }
 }

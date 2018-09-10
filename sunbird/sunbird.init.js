@@ -2,16 +2,29 @@ let multiparty = require('connect-multiparty');
 let multipartMiddle = multiparty();
 let fs = require('fs');
 let q = require('q');
-let { createFolderIfNotExists, extractFile } = require('./ekstep.controller.js');
-let { deleteDir } = require('../../../filesdk');
-let { exec } = require('child_process');
-let { initializeESDB } = require('./ekstep.db_restart.js');
-let { addDocument } = require('../../../searchsdk/index.js');
-let { startUploadngTelemetry } = require('./ekstep.telemetry_upload.js');
+let {
+    createFolderIfNotExists,
+    extractFile
+} = require('./sunbird.controller.js');
+let {
+    deleteDir
+} = require('../../../filesdk');
+let {
+    exec
+} = require('child_process');
+let {
+    initializeSbDB
+} = require('./sunbird.db_restart.js');
+let {
+    addDocument
+} = require('../../../searchsdk/index.js');
+let {
+    startUploadngTelemetry
+} = require('./sunbird.telemetry_upload.js');
 
 
 
-let initializeEkstepData = (path) => {
+let initializeSunbirdData = (path) => {
     let defer = q.defer();
     fs.readFile(path, (err, data) => {
         if (err) {
@@ -21,7 +34,7 @@ let initializeEkstepData = (path) => {
                 let config = JSON.parse(data);
                 let currentProfile = config.active_profile;
                 let currentConfig = config.available_profiles[currentProfile];
-                //ekStepData = currentConfig;
+                //sunbird = currentConfig;
                 return defer.resolve(currentConfig);
             } catch (e) {
                 console.log(e);
@@ -39,7 +52,7 @@ let initializeEkstepData = (path) => {
 let processEcarFiles = (filePath) => {
     let defer = q.defer();
     fs.readdir(filePath, (err, files) => {
-        if(err) {
+        if (err) {
             console.log(err);
             return defer.reject(err);
         } else {
@@ -72,7 +85,7 @@ let jsonDocsToDb = (dir) => {
     /*
         Updated behavior: Carpet bomb the index and rebuild from scratch
     */
-    initializeESDB().then(value => {
+    initializeSbDB().then(value => {
         console.log("Index successfully recreated");
         let promises = [];
         fs.readdir(dir, (err, files) => {
@@ -81,7 +94,10 @@ let jsonDocsToDb = (dir) => {
             } else {
                 for (let i = 0; i < files.length; i++) {
                     if (files[i].lastIndexOf('.json') + '.json'.length === files[i].length) {
-                        promises.push(addDocument({indexName : "es.db", documentPath : dir + files[i]}))
+                        promises.push(addDocument({
+                            indexName: "sb.db",
+                            documentPath: dir + files[i]
+                        }))
                     }
                 }
                 q.allSettled(promises).then(values => {
@@ -110,31 +126,31 @@ let initialize = () => {
     /*
         read all ecars and add to search index
     */
-    let ekStepData = {};
-    initializeEkstepData('/opt/opencdn/appServer/plugins/ekStep/profile.json').then(value => {
-        ekStepData = value;
-        return createFolderIfNotExists(ekStepData.media_root);
+    let sunbirdData = {};
+    initializeSunbirdData('/opt/opencdn/appServer/plugins/sunbird/profile.json').then(value => {
+        sunbirdData = value;
+        return createFolderIfNotExists(sunbirdData.media_root);
     }).then(value => {
-        console.log("Created " + ekStepData.media_root);
-        return createFolderIfNotExists(ekStepData.telemetry);
+        console.log("Created " + sunbirdData.media_root);
+        return createFolderIfNotExists(sunbirdData.telemetry);
     }).then(value => {
-        console.log("Created " + ekStepData.telemetry);
-        return createFolderIfNotExists(ekStepData.json_dir);
+        console.log("Created " + sunbirdData.telemetry);
+        return createFolderIfNotExists(sunbirdData.json_dir);
     }).then(value => {
-        console.log("Created " + ekStepData.json_dir);
-        return createFolderIfNotExists(ekStepData.content_root);
+        console.log("Created " + sunbirdData.json_dir);
+        return createFolderIfNotExists(sunbirdData.content_root);
     }).then(value => {
-        console.log("Created " + ekStepData.content_root);
-        return createFolderIfNotExists(ekStepData.unzip_content);
+        console.log("Created " + sunbirdData.content_root);
+        return createFolderIfNotExists(sunbirdData.unzip_content);
     }).then(value => {
-        console.log("Created " + ekStepData.unzip_content);
-        return processEcarFiles(ekStepData.media_root);
+        console.log("Created " + sunbirdData.unzip_content);
+        return processEcarFiles(sunbirdData.media_root);
     }).then(value => {
-        return jsonDocsToDb(ekStepData.json_dir);
+        return jsonDocsToDb(sunbirdData.json_dir);
     }, reason => {
         console.log(reason);
         console.log("There seem to be corrupt ecar files in the directory.");
-        return jsonDocsToDb(ekStepData.json_dir);
+        return jsonDocsToDb(sunbirdData.json_dir);
     }).then(value => {
         console.log("Initialized API Server");
     }).catch(e => {
@@ -156,5 +172,5 @@ initialize();
 */
 
 module.exports = {
-    initializeEkstepData
+    initializeSunbirdData
 }
