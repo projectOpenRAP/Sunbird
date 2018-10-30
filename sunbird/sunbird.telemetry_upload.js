@@ -8,9 +8,9 @@ let request = require('request');
 let fs = require('fs');
 let dns = require('dns');
 let cron = require('node-cron');
-let registerURL = 'https://api.ekstep.in/api-manager/v1/consumer/cdn_device/credential/register';
-let telemetryURL = 'https://api.ekstep.in/data/v3/telemetry';
-let appJwt = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJvcGVucmFwLXYxIn0.OtUIioaagXzOLLZNsPoh-E2pHjsZ6ka-cyP9lLDIW38';
+// let registerURL = 'https://api.ekstep.in/api-manager/v1/consumer/cdn_device/credential/register';
+let telemetryURL = 'https://staging.open-sunbird.org/api/data/v1/telemetry';
+let appJwt = '';
 let zlib = require('zlib');
 
 let JWT_ALGORITHM = 'HS256';
@@ -19,6 +19,8 @@ let deviceKey = deviceSecret = tmJwt = "";
 
 let logOptimizationLimit = 25;
 let logCurrentValue = 0;
+
+let { generateOriginalJWTs } = require('./sunbird.helper.js')
 
 //TODO: Replace below code with reading of JSON file
 let telemetryDir = "/home/admin/sunbird/telemetry/"
@@ -130,39 +132,26 @@ let checkConnectivity = () => {
     return defer.promise;
 }
 
-let requestTokenGeneration = (options) => {
+let requestTokenGeneration = () => {
     let defer = q.defer();
-    request(options, (err, resp, body) => {
-        if (err) {
-            logger.log("error", "Error : " + err /* + " \nStatus Code: " + resp.statusCode*/ );
-            //TODO: Add code to try again [DONE]
-            return defer.reject(err);
-        } else {
-            let statusCode = resp.statusCode;
-            if (parseInt(statusCode / 100) != 2) {
-                console.log("Bad status code");
-                console.log(statusCode);
-                return defer.reject(statusCode);
-            }
-            parsedBody = JSON.parse(body);
-            console.log("We got a body " + body);
-            deviceKey = parsedBody.result.key;
-            deviceSecret = parsedBody.result.secret;
-            console.log("Key is " + deviceKey + " and secret is " + deviceSecret);
-            generateJwt(deviceKey, deviceSecret).then(value => {
-                console.log("We have obtained " + value.token);
-                tmJwt = value.token;
-                logger.log("info", "Device key: " + deviceKey + " Device Secret: " + deviceSecret + " JWT Token: " + tmJwt);
-                currentTokenStatus = 1;
-                uploadTelemetryDirectory();
-                return defer.resolve();
-            }).catch(e => {
-                console.log("Error: " + e.err);
-                return defer.reject();
-            });
-        }
-    });
-
+    console.log("Bongiorno")
+    if (tmJwt.length < 1) {
+        generateOriginalJWTs().then(value => {
+            console.log("We have obtained " + value.token);
+            tmJwt = value.token;
+            currentTokenStatus = 1;
+            return uploadTelemetryDirectory();
+        }).then(value => {
+            return defer.resolve();
+        }).catch(e => {
+            console.log("Error: " + e.err);
+            return defer.reject();
+        });
+    } else {
+        console.log("Reusing key")
+        uploadTelemetryDirectory();
+        defer.resolve();
+    }
     return defer.promise;
 }
 
@@ -176,26 +165,8 @@ let generateToken = () => {
     }
     let deviceKey = random(16);
     console.log("Generated random " + deviceKey);
-    let payload = {
-        id: "ekstep.cdn.pinut",
-        ver: "2.0",
-        request: {
-            key: deviceKey
-        }
-    };
-    let authText = "bearer " + appJwt;
-    let headers = {
-        'Content-Type': 'application/json',
-        'Authorization': authText
-    }
-    let options = {
-        url: registerURL,
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-    }
     let statusCode = 0;
-    requestTokenGeneration(options).then(value => {
+    requestTokenGeneration().then(value => {
         return defer.resolve();
     }).catch(e => {
         return defer.reject(e);
@@ -213,6 +184,7 @@ let uploadTelemetryFile = (fileName, jwt, endpoint = telemetryURL) => {
         'Accept-Encoding': 'gzip',
         'Authorization': authText
     };
+    console.log("Let's upload")
     fs.readFile(fileName, (err, data) => {
         if (err) {
             return defer.reject(err);
@@ -221,9 +193,12 @@ let uploadTelemetryFile = (fileName, jwt, endpoint = telemetryURL) => {
                 url: endpoint,
                 method: 'POST',
                 headers,
-                body: data
+                body: data.toString(),
+                json: true
             }
+            console.log("Options are:", options)
             request(options, (err, res, body2) => {
+                console.log("Upload attempt over")
                 let body = null;
                 if (err) {
                     return defer.reject({
@@ -235,10 +210,11 @@ let uploadTelemetryFile = (fileName, jwt, endpoint = telemetryURL) => {
                         err: res
                     })
                 }
-                if (typeof body2.params === 'undefined') {
+                if (typeof body2.params !== 'undefined') {
                     body = JSON.parse(body2);
                 } else {
-                    body = JSON.parse(body2);
+                    body = JSON.stringify(body2);
+                    console.log(body)
                     body.params = {};
                 }
                 let statusCode = res.statusCode;
@@ -309,6 +285,7 @@ let sortFilesByDate = (dir, files) => {
 
 let uploadTelemetryFileWrapper = (file) => {
     let defer = q.defer();
+    console.log("Gonna upload", file)
     uploadTelemetryFile(file, tmJwt, telemetryURL).then(value => {
         if (value.status === 'successful' || value.err === 'INVALID_DATA_ERROR') {
             logger.log("info", "Telemetry upload(" + file + ") status : " + value.status + ' err: ' + value.errMsg);
@@ -337,6 +314,9 @@ let uploadTelemetryFileWrapper = (file) => {
             console.log(value);
             return defer.reject();
         }
+    }).catch(reason => {
+        console.log("Some failure due to ", reason);
+        return defer.reject({err: reason});
     });
     return defer.promise;
 }
@@ -356,20 +336,25 @@ let uploadTelemetryDirectory = () => {
             checkConnectivity().then(value => {
                 logger.log("info", "Internet connected!");
                 let rateLimit = 1000;
+                console.log("Sorting time");
                 sortFilesByDate(telDir, files).then(value => {
+                    console.log("number of files:", value.length)
                     sortedFileList = value;
                     telemetryUploadPromises = [];
                     for (let i = 0; i < sortedFileList.length; i++) {
                         file = sortedFileList[i];
+                        console.log("Uploading time")
                         telemetryUploadPromises.push(uploadTelemetryFileWrapper(file));
                     }
                     q.allSettled(telemetryUploadPromises).then(values => {
                         for (let i = 0; i < values.length; i++) {
                             if (values[i].state !== 'fulfilled') {
+                                console.log("OMG FAIL")
                                 return defer.reject();
                             }
                         }
-                        return defer.promise();
+                        console.log("OMG PASS")
+                        return defer.resolve();
                     });
                 }).catch(err => {
                     logger.log("error", err);
@@ -386,7 +371,7 @@ let uploadTelemetryDirectory = () => {
 
 let startUploadngTelemetry = () => {
     console.log("Sunbird telemetry shall now be uploaded.");
-    cron.schedule("*/3 * * * *", () => {
+    cron.schedule("*/1 * * * *", () => {
         loggingInit().then(value => {
             return generateToken();
         }).then(value => {
