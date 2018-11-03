@@ -180,8 +180,8 @@ let uploadTelemetryFile = (fileName, jwt, endpoint = telemetryURL) => {
     let authText = "bearer " + jwt;
     let headers = {
         'Content-Type': 'application/json',
-        'Content-Encoding': 'gzip',
-        'Accept-Encoding': 'gzip',
+    //    'Content-Encoding': 'gzip',
+    //    'Accept-Encoding': 'gzip',
         'Authorization': authText
     };
     console.log("Let's upload")
@@ -193,12 +193,13 @@ let uploadTelemetryFile = (fileName, jwt, endpoint = telemetryURL) => {
                 url: endpoint,
                 method: 'POST',
                 headers,
-                body: data.toString(),
+                body: JSON.parse(data.toString()),
                 json: true
             }
             console.log("Options are:", options)
             request(options, (err, res, body2) => {
                 console.log("Upload attempt over")
+                console.log(body2)
                 let body = null;
                 if (err) {
                     return defer.reject({
@@ -210,22 +211,19 @@ let uploadTelemetryFile = (fileName, jwt, endpoint = telemetryURL) => {
                         err: res
                     })
                 }
+                // Here lies my soul
                 if (typeof body2.params !== 'undefined') {
-                    body = JSON.parse(body2);
+                    body = body2;
                 } else {
                     body = JSON.stringify(body2);
                     console.log(body)
                     body.params = {};
                 }
-                let statusCode = res.statusCode;
-                let status = body.params.status;
-                let err2 = body.params.err;
-                let errMsg = body.params.errmsg;
+                let responseCode = body.responseCode;
+                let params = body.params;
                 return defer.resolve({
-                    statusCode,
-                    status,
-                    err: err2,
-                    errMsg
+                    responseCode,
+                    params
                 });
             });
         }
@@ -287,7 +285,8 @@ let uploadTelemetryFileWrapper = (file) => {
     let defer = q.defer();
     console.log("Gonna upload", file)
     uploadTelemetryFile(file, tmJwt, telemetryURL).then(value => {
-        if (value.status === 'successful' || value.err === 'INVALID_DATA_ERROR') {
+        console.log("Uploading returned ", value);
+        if (value.responseCode === 'SUCCESS' || value.err === 'INVALID_DATA_ERROR') {
             logger.log("info", "Telemetry upload(" + file + ") status : " + value.status + ' err: ' + value.errMsg);
             fs.unlink(file, (err) => {
                 if (err) {
@@ -296,11 +295,6 @@ let uploadTelemetryFileWrapper = (file) => {
                     logger.log("info", "Successfully deleted telemety " + file + " after upload");
                 }
             });
-            if (rateLimit < 1) {
-                return defer.resolve();
-            } else {
-                rateLimit -= 1;
-            }
         } else if (value.statusCode == 401) {
             logger.log("info", "Telemetry upload(" + fileName + ") status : " + value.status + ' err: ' + value.errMsg);
             logger.log("info", "Unauthorized: Regenerating Token...");
@@ -309,10 +303,11 @@ let uploadTelemetryFileWrapper = (file) => {
         } else if (value.statusCode == 429) {
             logger.log("info", "Telemetry upload(" + fileName + ") status : " + value.status + ' err: ' + value.errMsg);
             logger.log("info", "Ratelimit: API rate limit exceeded...");
-            return defer.reject();
+            return defer.reject("313");
         } else {
+            console.log("Whatever comes below")
             console.log(value);
-            return defer.reject();
+            return defer.reject("316");
         }
     }).catch(reason => {
         console.log("Some failure due to ", reason);
@@ -349,6 +344,7 @@ let uploadTelemetryDirectory = () => {
                     q.allSettled(telemetryUploadPromises).then(values => {
                         for (let i = 0; i < values.length; i++) {
                             if (values[i].state !== 'fulfilled') {
+                                console.log(values[i]);
                                 console.log("OMG FAIL")
                                 return defer.reject();
                             }

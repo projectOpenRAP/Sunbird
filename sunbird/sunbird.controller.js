@@ -645,7 +645,7 @@ let telemetryData = (req, res) => {
     let now = new Date().getTime();
     baseInt++;
     let responseStructure = {};
-    let newFileName = baseInt + '_' + 'tm_' + now + '.gz';
+    let newFileName = baseInt + '_' + 'tm_' + now + '.json';
     createFolderIfNotExists(telemetryDir)
         .then(value => {
             let newFile = fs.createWriteStream(telemetryDir + newFileName);
@@ -654,12 +654,10 @@ let telemetryData = (req, res) => {
         })
         .then(value => {
             responseStructure = value.data;
-            let nzip = zlib.createGzip();
-            nzip.pipe(fs.createWriteStream(telemetryDir + newFileName));
-            nzip.write(body);
-            nzip.end();
-            responseStructure.ts = new Date();
+            fs.writeFile(telemetryDir + newFileName, body, (err) => {
+                responseStructure.ts = new Date();
             return res.status(200).json(responseStructure);
+            })
             /*
             zlib.createGzip(new Buffer(body, 'utf-8'), (err, data) => {
                 if (err) {
