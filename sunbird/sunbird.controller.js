@@ -116,7 +116,8 @@ let cleanKeys = (fieldList) => {
         'os',
         'tags',
         'attributions',
-        'childNodes'
+        'childNodes',
+        'dialcodes'
     ]
 
     let newFieldList = {};
