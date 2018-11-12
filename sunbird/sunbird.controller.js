@@ -66,39 +66,51 @@ let cleanKeys = (fieldList) => {
     }
 
     let remainingAllowedKeys = [
-        "code",
-        "compatibilityLevel",
-        "consumerId",
+        "appIcon",
+        "pkgVersion",
+        "board",
+        "medium",
+        "publisher",
+        "me_totalRatings",
+        "me_averageRating",
+        "me_totalDownloads",
+        "copyright",
+        "license",
+        "expires",
+        "downloadUrl",
+        "variants",
+        "artifactUrl",
+        "language",
+        "gradeLevel",
+        "resourceType",
+        "artifactMimeType",
+        "contentEncoding",
+        "contentDisposition",
+        "contentTypesCount",
+        "channel",
+        "screenshots",
+        "audience",
+        "pragma",
+        "attributions",
+        "dialcodes",
+        "childNodes",
         "contentType",
         "createdBy",
         "createdOn",
         "creator",
         "description",
-        "es_metadata_id",
-        "idealScreenDensity",
-        "idealScreenSize",
         "identifier",
         "lastPublishedOn",
-        "lastSubmittedOn",
-        "lastPublishedBy",
-        "lastUpdatedBy",
-        "lastUpdatedOn",
-        "mediaType",
         "mimeType",
         "name",
-        "objectType",
         "osId",
         "owner",
-        "pkgversion",
-        "s3Key",
         "size",
         "status",
         "subject",
-        "tags",
-        "versionKey",
-        "visibility",
+        "versionKey"
+    ];
 
-    ]
     let keysPointingToUrls = [
         'appIcon',
         'artifactUrl',
@@ -117,7 +129,9 @@ let cleanKeys = (fieldList) => {
         'tags',
         'attributions',
         'childNodes',
-        'dialcodes'
+        'dialcodes',
+        'screenshots',
+        'pragma'
     ]
 
     let newFieldList = {};
@@ -155,6 +169,12 @@ let cleanKeys = (fieldList) => {
                     }
                 }
                 contentType = plurals[newFieldList.contentType];
+                // Add objType to fields
+                objType = newFieldList.objectType;
+                newFieldList = {
+                    ...newFieldList,
+                    objType
+                };
                 return defer.resolve({
                     fields: newFieldList,
                     contentType
