@@ -170,7 +170,7 @@ let cleanKeys = (fieldList) => {
                 }
                 contentType = plurals[newFieldList.contentType];
                 // Add objType to fields
-                objType = newFieldList.objectType;
+                let objType = newFieldList.objectType;
                 newFieldList = {
                     ...newFieldList,
                     objType
@@ -375,7 +375,7 @@ let generateResponseStructure = (rSt, rsps) => {
             rSt.result.response.sections[contentTypeLocation].contents.push(rsps[i].fields);
         }
     };
-	
+
 	let secs = rSt.result.response.sections;
 	let cacheQuery;
 
@@ -390,7 +390,7 @@ let generateResponseStructure = (rSt, rsps) => {
 		} else {
 			cacheQuery = searchQuery;
 		}
-		
+
 		return {
 			...sec,
 			display: strDisplay,
@@ -398,7 +398,7 @@ let generateResponseStructure = (rSt, rsps) => {
 			searchQuery
 		};
 	});
-	
+
 	rSt.result.response.sections = secs;
 
 //	console.log({secs});
