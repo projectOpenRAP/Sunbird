@@ -781,9 +781,9 @@ let modifyJsonData = (jsonFile, file) => {
                 jsonData = JSON.parse(data);
                 let downloadUrl = jsonData.archive.items[0].downloadUrl;
                 console.log(downloadUrl);
-                if (downloadUrl !== null) {
+                if (downloadUrl) {
                     let website = downloadUrl.match(/^http(s?):\/\/(((\w|\d)+)\.)+(\w|\d)+/);
-                    if (website !== null && downloadUrl.indexOf("youtube") !== -1) {
+                    if (website && downloadUrl.indexOf("youtube") !== -1) {
                         downloadUrl = downloadUrl.slice(0, downloadUrl.indexOf(website) + website.length) + '/ecar_files/' + file;
                     } else {
                         downloadUrl = 'http://www.openrap.com/ecar_files/' + file;
