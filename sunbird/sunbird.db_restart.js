@@ -1,4 +1,3 @@
-let q = require('q');
 let {
     init,
     createIndex,
@@ -6,73 +5,25 @@ let {
     getAllIndices
 } = require('../../../searchsdk/index.js');
 
-
-/*
- *   Check if index exists
- *   If not, create
- *   If so, carpet bomb
- *   Then load
- */
-
-
-let checkIfIndexExists = (iName) => {
-    let defer = q.defer();
-    getAllIndices().then(value => {
-        let indices = JSON.parse(value.body).indexes;
-        console.log(indices);
-        if (indices.indexOf(iName) === -1) {
-            console.log("The database does not exist, create new one.");
-            return defer.reject();
-        } else {
-            console.log("The database exists, delete and create new one.");
-            return defer.resolve();
-        }
-    });
-    return defer.promise;
-}
-
 let initializeSbDB = () => {
-    let defer = q.defer();
-    checkIfIndexExists("sb.db").then(value => {
-        deleteIndex({
-            indexName: "sb.db"
-        }).then(value => {
-            console.log("Deleted index");
-            return createIndex({
-                indexName: "sb.db"
-            });
-        }).then(value => {
-            console.log("Index created");
-            return init();
-        }).then(value => {
-            return defer.resolve();
-        }).catch(e => {
-            console.log("Recreate error: ");
-            return defer.rejeect(e);
-        });
-    }, reason => {
-        createIndex({
-            indexName: "sb.db"
-        }).then(value => {
-            console.log("Created new index");
-            return init();
-        }).then(value => {
-            return defer.resolve();
-        }).catch(e => {
-            console.log("Create error: ");
-            return defer.reject(e);
-        });
-    });
-    return defer.promise;
-}
+    return init()
+        .then(res => {
+            return getAllIndices();
+        })
+        .then(res => {
+            let availableIndices = JSON.parse(res.body).indexes;
 
-/*
-initializeSbDB().then(value => {
-    console.log("successfully initialized DB");
-}).catch(e => {
-    console.log(e);
-});
-*/
+            if (availableIndices.indexOf('sb.db') === -1) {
+                return { message : 'Creating sunbird index now.' };
+            } else {
+                return deleteIndex({ indexName : 'sb.db' });
+            }
+        })
+        .then(res => {
+            res.message && console.log(res.message);
+            return createIndex({ indexName : 'sb.db'});
+        });
+}
 
 module.exports = {
     initializeSbDB
