@@ -39,7 +39,7 @@ let addEcarToDb = (id, type, size, parentId) => {
   let values  = [id, type, size, parentId];
   values.filter(item => item !== undefined && item !== null);
 
-  let queryObject = { 
+  let queryObject = {
     dbName : defaultDbName,
     tableName : defaultTableName,
     columns : ['id', 'type', 'size', 'parent_id'],
@@ -1029,11 +1029,11 @@ let doPostExtraction = (dir, file) => {
 
     let manifestData = undefined;
     const manifestFile = dir + fileNameAsFolder + 'manifest.json';
-    
+
     readFileWithPromise(manifestFile).then(fileData => {
-	manifestData = fileData;
-    
-	return createFolderIfNotExists(dir + 'ecar_files/');
+    	manifestData = fileData;
+
+	    return createFolderIfNotExists(dir + 'ecar_files/');
     }).then(resolve => {
     	const id = manifestData.archive.items[0].identifier;
     	const ver = manifestData.archive.items[0].pkgVersion;
@@ -1044,14 +1044,18 @@ let doPostExtraction = (dir, file) => {
         console.log("Moved file to ecar_files: " + file);
         return createFolderIfNotExists(dir + 'json_dir/');
     }).then(resolve => {
-        //addEcarToDb(file); // Add ecar file to db
-        
+	    const id = manifestData.archive.items[0].identifier;
+	    const ver = manifestData.archive.items[0].pkgVersion;
+	    const target = getEcarName(id, ver);
+
         let jsonFile = dir + fileNameAsFolder + 'manifest.json';
+
         console.log("Attempting to play with " + jsonFile);
-        return changeDownloadUrl(jsonFile, file);
+
+        return changeDownloadUrl(jsonFile, target);
     }).then(resolve => {
         let jsonFile = resolve.jsonFile;
-	
+
 	    const id = manifestData.archive.items[0].identifier;
 	    const ver = manifestData.archive.items[0].pkgVersion;
 	    const target = getEcarName(id, ver);
