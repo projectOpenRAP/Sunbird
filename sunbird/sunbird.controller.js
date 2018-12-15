@@ -27,7 +27,26 @@ let {
     getAllIndices,
     advancedSearch
 } = require('../../../searchsdk/index.js');
+let {
+	insertFields
+} = require('../../../dbsdk');
 let baseInt = 0;
+const defaultDbName = 'device_mgmt';
+const defaultTableName = 'ecars';
+
+let addEcarToDb = (id, type, size, parentId) => {
+
+  let values  = [id, type, size, parentId];
+  values.filter(item => item !== undefined && item !== null);
+
+  let queryObject = {
+    dbName : defaultDbName,
+    tableName : defaultTableName,
+    columns : ['id', 'type', 'size', 'parent_id'],
+    values
+  }
+  return insertFields(queryObject);
+}
 
 /*
     Loads the response structure skeleton of each and every file
@@ -230,9 +249,6 @@ let doThoroughSearch = (queryString) => {
     let defer = q.defer();
 
     let searchPromise;
-
-    //console.log(queryString)
-    //console.log(typeof queryString);
 
     if (typeof queryString !== 'object') {
         searchPromise = search({
@@ -946,7 +962,6 @@ let deleteEcarData = (dir, file) => {
     return defer.promise;
 }
 
-
 /*
     Post extraction methods, called if extraction is successful and data needs to be post-processed.
 */
@@ -987,6 +1002,22 @@ let moveInternalFolders = (dir, fileNameAsFolder) => {
     return defer.promise;
 }
 
+let readFileWithPromise = (path) => {
+	let defer = q.defer();
+
+	fs.readFile(path, (err, data) => {
+		if(err) {
+			defer.reject(err);
+		} else {
+			defer.resolve(JSON.parse(data));
+		}
+	});
+
+	return defer.promise;
+}
+
+let getEcarName = (id, ver) => `${id}_${ver.toFixed(1)}.ecar`;
+
 let doPostExtraction = (dir, file) => {
     let defer = q.defer();
     let fileNameAsFolder = file.slice(0, -5) + '/';
@@ -995,20 +1026,41 @@ let doPostExtraction = (dir, file) => {
       2. Rename manifest.json to name of ecar file and sent to json_files
       3. Transfer the do_whatever folder to xcontent
     */
-    createFolderIfNotExists(dir + 'ecar_files/').then(resolve => {
-        return moveFileWithPromise(dir + file, dir + 'ecar_files/' + file);
+
+    let manifestData = undefined;
+    const manifestFile = dir + fileNameAsFolder + 'manifest.json';
+
+    readFileWithPromise(manifestFile).then(fileData => {
+    	manifestData = fileData;
+
+	    return createFolderIfNotExists(dir + 'ecar_files/');
+    }).then(resolve => {
+    	const id = manifestData.archive.items[0].identifier;
+    	const ver = manifestData.archive.items[0].pkgVersion;
+    	const target = getEcarName(id, ver);
+
+    	return moveFileWithPromise(dir + file, dir + 'ecar_files/' + target);
     }).then(resolve => {
         console.log("Moved file to ecar_files: " + file);
         return createFolderIfNotExists(dir + 'json_dir/');
     }).then(resolve => {
+	    const id = manifestData.archive.items[0].identifier;
+	    const ver = manifestData.archive.items[0].pkgVersion;
+	    const target = getEcarName(id, ver);
+
         let jsonFile = dir + fileNameAsFolder + 'manifest.json';
+
         console.log("Attempting to play with " + jsonFile);
-        return changeDownloadUrl(jsonFile, file);
+
+        return changeDownloadUrl(jsonFile, target);
     }).then(resolve => {
-        console.log("Modded JSON file: " + file);
         let jsonFile = resolve.jsonFile;
-        console.log("Attempted to play with " + jsonFile);
-        return moveFileWithPromise(jsonFile, dir + 'json_dir/' + file + '.json');
+
+	    const id = manifestData.archive.items[0].identifier;
+	    const ver = manifestData.archive.items[0].pkgVersion;
+	    const target = getEcarName(id, ver);
+
+	    return moveFileWithPromise(jsonFile, dir + 'json_dir/' + target + '.json');
     }).then(resolve => {
         console.log("Moved JSON file: " + file);
         return createFolderIfNotExists(dir + 'xcontent/');
